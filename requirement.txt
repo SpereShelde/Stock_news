@@ -1,0 +1,13 @@
+certifi==2019.11.28
+cffi==1.13.2
+chardet==3.0.4
+cryptography==2.8
+freeze==1.0.10
+future==0.18.2
+idna==2.8
+pycparser==2.19
+python-telegram-bot==12.3.0
+requests==2.22.0
+six==1.14.0
+tornado==6.0.3
+urllib3==1.25.8
