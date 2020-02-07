@@ -25,27 +25,29 @@ class Eastmoney(threading.Thread):
         while True:
             response = requests.get("https://kuaixun.eastmoney.com/yw.html", headers=self.headers).text
             text = response[response.find('<div class="livenews-list font-12" id="livenews-list">'):response.find('</span></h2></div><div class="media-comment"></div></div></div>')]
-            items = text.split('<div class="media-content">')
+            items = text.split('<div class="media-content">')[1:]
             connection = sqlite3.connect('news.db')
             cursor = connection.cursor()
-            insert_count = 0
+            print("Get %d items" % len(items))
+            self.logger.info("Get %d items" % len(items))
             for item in items:
-                get_time = item[19:24]
+                # get_time = item[19:24]
                 item = item[105:]
                 link = item[:item.find('class="media-title"') - 2]
                 content = item[item.find('class="media-title">')+20:item.find('</a><span class="media-title">')]
                 result = None
                 try:
-                    cursor.execute("SELECT id FROM eastmoney WHERE link = ?", (link,))
+                    cursor.execute("SELECT id FROM news WHERE link = ?", (link,))
                     result = cursor.fetchone()
                 except Exception as e:
                     self.logger.error(e)
                     self.logger.error("Cannot query news %s" % link)
                 if not result:
-                    insert_count += 1
+                    print("Insert %s" % link)
+                    self.logger.info("Insert %s" % link)
                     try:
-                        cursor.execute("INSERT INTO eastmoney (time, link, content, pushed) VALUES (?,?,?,?)",
-                                       (get_time, link, content,-1))
+                        cursor.execute("INSERT INTO news (time, link, content, pushed, code) VALUES (?,?,?,?, ?)",
+                                       (int(time.time()), link, content,-1, "General"))
                         connection.commit()
                     except Exception as e:
                         self.logger.error(e)
@@ -53,9 +55,8 @@ class Eastmoney(threading.Thread):
                         connection.rollback()
             cursor.close()
             connection.close()
-            print("Get %d items and insert %d new items" % (len(items), insert_count))
-            self.logger.info("Get %d items and insert %d new items" % (len(items), insert_count))
-            time.sleep(10)
+
+            time.sleep(30)
 
 east_money = Eastmoney()
 
