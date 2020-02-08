@@ -26,9 +26,10 @@ class SinaNews(threading.Thread):
         while True:
             connection = sqlite3.connect('news.db')
             cursor = connection.cursor()
+
             results = None
             try:
-                cursor.execute("SELECT code FROM codes WHERE state = ?", (1,))
+                cursor.execute("SELECT code, first FROM codes WHERE state = ?", (1,))
                 results = cursor.fetchall()
             except Exception as e:
                 self.logger.error(e)
@@ -36,6 +37,7 @@ class SinaNews(threading.Thread):
             if results:
                 for result in results:
                     code = result[0]
+                    first = result[1]
                     r = requests.get("https://vip.stock.finance.sina.com.cn/corp/go.php/vCB_AllNewsStock/symbol/%s.phtml"%code, headers=self.headers).content
                     response = str(r, 'gbk')
                     regex = re.compile("<a target='_blank' href='(.+?)'>(.+?)</a>")
@@ -61,13 +63,26 @@ class SinaNews(threading.Thread):
                                 print("Insert %s" % links[i])
                                 self.logger.info("Insert %s" % links[i])
                                 try:
-                                    cursor.execute("INSERT INTO news (time, link, content, pushed, code) VALUES (?,?,?,?,?)",
-                                                   (int(time.time()), links[i], titles[i],-1,code))
+                                    if first == 1:
+                                        cursor.execute(
+                                            "INSERT INTO news (time, link, content, pushed, code) VALUES (?,?,?,?,?)",
+                                            (int(time.time()), links[i], titles[i], 1, code))
+                                    else:
+                                        cursor.execute(
+                                            "INSERT INTO news (time, link, content, pushed, code) VALUES (?,?,?,?,?)",
+                                            (int(time.time()), links[i], titles[i], -1, code))
                                     connection.commit()
                                 except Exception as e:
                                     self.logger.error(e)
                                     self.logger.error("Cannot insert news %s" % links[i])
                                     connection.rollback()
+                try:
+                    cursor.execute("UPDATE codes set first=? WHERE code = ?", (0, code))
+                    connection.commit()
+                except Exception as e:
+                    self.logger.error(e)
+                    self.logger.error("Cannot update code")
+                    connection.rollback()
             cursor.close()
             connection.close()
 
